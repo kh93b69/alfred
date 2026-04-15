@@ -16,6 +16,10 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 # Модель Claude для использования
 CLAUDE_MODEL = "claude-sonnet-4-20250514"
 
+# Notion
+NOTION_API_KEY = os.getenv("NOTION_API_KEY")
+NOTION_ROOT_PAGE_ID = os.getenv("NOTION_ROOT_PAGE_ID")
+
 # Trello
 TRELLO_API_KEY = os.getenv("TRELLO_API_KEY")
 TRELLO_TOKEN = os.getenv("TRELLO_TOKEN")
