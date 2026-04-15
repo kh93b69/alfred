@@ -4,7 +4,10 @@ import logging
 from aiogram import Bot, Dispatcher
 
 from bot.config import TELEGRAM_BOT_TOKEN
-from bot.handlers import start, knowledge, tasks, docs, invoice, files, voice, chat, remind, notion_cmd
+from bot.handlers import (
+    start, knowledge, tasks, docs, invoice, files, voice, chat, remind,
+    notion_cmd, decompose, priority, summary, contacts, idea, brief, energy,
+)
 from bot.handlers import agent as agent_handler
 from bot.services.scheduler import start_scheduler, set_bot, scheduler
 from bot.services import reminders
@@ -34,6 +37,13 @@ async def main():
     dp.include_router(tasks.router)
     dp.include_router(remind.router)
     dp.include_router(notion_cmd.router)
+    dp.include_router(decompose.router)
+    dp.include_router(priority.router)
+    dp.include_router(summary.router)
+    dp.include_router(contacts.router)
+    dp.include_router(idea.router)
+    dp.include_router(brief.router)
+    dp.include_router(energy.router)
     dp.include_router(docs.router)
     dp.include_router(invoice.router)
     dp.include_router(files.router)

@@ -8,6 +8,7 @@ from apscheduler.triggers.cron import CronTrigger
 OWNER_TZ = timezone(timedelta(hours=5))
 
 from bot.services.agent import propose_daily_tasks, daily_report, pending_tasks
+from bot.services.briefing import build_morning_briefing
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,12 @@ async def morning_routine():
 
     try:
         logger.info("Утренняя рутина...")
+
+        # Сначала брифинг
+        briefing = await build_morning_briefing()
+        await bot_instance.send_message(owner_chat_id, briefing, parse_mode="Markdown")
+
+        # Потом задачи
         tasks = await propose_daily_tasks()
 
         if not tasks:
@@ -91,12 +98,28 @@ async def morning_routine():
 
 
 async def evening_report():
-    """Вечерний отчёт"""
+    """Вечерний отчёт + запрос энергии"""
     if not owner_chat_id or not bot_instance:
         return
     try:
         report = await daily_report()
         await bot_instance.send_message(owner_chat_id, report, parse_mode="Markdown")
+
+        # Запрос энергии
+        buttons = []
+        row = []
+        for i in range(1, 11):
+            row.append(InlineKeyboardButton(text=str(i), callback_data=f"energy:{i}"))
+            if len(row) == 5:
+                buttons.append(row)
+                row = []
+        keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
+        await bot_instance.send_message(
+            owner_chat_id,
+            "⚡ **Как энергия сегодня?** (1-10)",
+            parse_mode="Markdown",
+            reply_markup=keyboard,
+        )
     except Exception as e:
         logger.error(f"Ошибка вечернего отчёта: {e}")
 
