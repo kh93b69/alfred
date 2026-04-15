@@ -1,7 +1,11 @@
 import logging
+from datetime import timezone, timedelta
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+
+# Часовой пояс владельца — Караганда UTC+5
+OWNER_TZ = timezone(timedelta(hours=5))
 
 from bot.services.agent import propose_daily_tasks, daily_report, pending_tasks
 
@@ -99,7 +103,7 @@ async def evening_report():
 
 def start_scheduler():
     """Запускает планировщик"""
-    scheduler.add_job(morning_routine, CronTrigger(hour=8, minute=0), id="morning_routine", replace_existing=True)
-    scheduler.add_job(evening_report, CronTrigger(hour=21, minute=0), id="evening_report", replace_existing=True)
+    scheduler.add_job(morning_routine, CronTrigger(hour=8, minute=0, timezone=OWNER_TZ), id="morning_routine", replace_existing=True)
+    scheduler.add_job(evening_report, CronTrigger(hour=21, minute=0, timezone=OWNER_TZ), id="evening_report", replace_existing=True)
     scheduler.start()
-    logger.info("Планировщик запущен: утро 8:00, вечер 21:00")
+    logger.info("Планировщик запущен: утро 8:00, вечер 21:00 (UTC+5)")
