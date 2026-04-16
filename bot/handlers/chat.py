@@ -107,9 +107,27 @@ async def _detect_and_execute(message: Message, user_text: str):
             return
         card = trello.create_card(name=name, description=desc)
         await message.answer(
-            f"✅ Задача создана в Trello:\n**{name}**\n{card.get('shortUrl', '')}",
+            f"📋 Задача создана в Trello: **{name}**\nВыполняю...",
             parse_mode="Markdown",
         )
+
+        # Сразу выполняем задачу
+        try:
+            from bot.services.agent import execute_task
+            await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
+            result = await execute_task(card["id"], name, desc, "text")
+
+            preview = result["text"][:3500] + "..." if len(result["text"]) > 3500 else result["text"]
+            await message.answer(f"✅ **{name}** — выполнено:\n\n{preview}", parse_mode="Markdown")
+
+            # Отправляем файл если есть
+            if result.get("file_path") and os.path.exists(result["file_path"]):
+                doc_file = FSInputFile(result["file_path"])
+                await message.answer_document(doc_file, caption=f"📎 {result['file_name']}")
+                os.remove(result["file_path"])
+        except Exception as e:
+            logger.error(f"Ошибка выполнения задачи: {e}")
+            await message.answer(f"Задача создана, но при выполнении ошибка: {e}")
 
     elif tool == "CREATE_INVOICE":
         await message.answer("Генерирую счёт...")
