@@ -20,7 +20,7 @@ async def cmd_ticktick(message: Message):
     raw = message.text.replace("/ticktick", "", 1).strip()
 
     # Если передан код авторизации
-    if raw and len(raw) > 10 and not raw.startswith("task"):
+    if raw and len(raw) >= 4:
         try:
             ticktick.exchange_code(raw)
             await message.answer("✅ TickTick подключён! Теперь можешь использовать /tt для задач.")
