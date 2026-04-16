@@ -14,12 +14,8 @@ AUTH_URL = "https://ticktick.com/oauth/authorize"
 TOKEN_URL = "https://ticktick.com/oauth/token"
 REDIRECT_URI = "https://localhost"
 
-# Файл для хранения токена
-TOKEN_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "ticktick_token.json")
-
-
-def _ensure_dir():
-    os.makedirs(os.path.dirname(TOKEN_FILE), exist_ok=True)
+# Токен хранится в памяти (+ env переменная для переживания деплоя)
+_access_token: str = os.getenv("TICKTICK_ACCESS_TOKEN", "")
 
 
 def get_auth_url() -> str:
@@ -53,22 +49,17 @@ def exchange_code(code: str) -> dict:
     with urllib.request.urlopen(req) as resp:
         token_data = json.loads(resp.read().decode("utf-8"))
 
-    # Сохраняем токен
-    _ensure_dir()
-    with open(TOKEN_FILE, "w") as f:
-        json.dump(token_data, f)
+    # Сохраняем токен в память
+    global _access_token
+    _access_token = token_data.get("access_token", "")
 
-    logger.info("TickTick токен получен и сохранён")
+    logger.info(f"TickTick токен получен. Добавь в Railway Variables: TICKTICK_ACCESS_TOKEN={_access_token}")
     return token_data
 
 
 def _get_token() -> str:
-    """Получает сохранённый access_token"""
-    if not os.path.exists(TOKEN_FILE):
-        return ""
-    with open(TOKEN_FILE, "r") as f:
-        data = json.load(f)
-    return data.get("access_token", "")
+    """Получает access_token"""
+    return _access_token
 
 
 def is_connected() -> bool:

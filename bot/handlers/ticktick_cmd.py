@@ -22,8 +22,14 @@ async def cmd_ticktick(message: Message):
     # Если передан код авторизации
     if raw and len(raw) >= 4:
         try:
-            ticktick.exchange_code(raw)
-            await message.answer("✅ TickTick подключён! Теперь можешь использовать /tt для задач.")
+            token_data = ticktick.exchange_code(raw)
+            access_token = token_data.get("access_token", "")
+            await message.answer(
+                f"✅ TickTick подключён!\n\n"
+                f"Чтобы токен пережил передеплой — добавь в Railway Variables:\n\n"
+                f"TICKTICK_ACCESS_TOKEN={access_token}\n\n"
+                f"После этого переавторизация не нужна."
+            )
         except Exception as e:
             await message.answer(f"Ошибка авторизации: {e}")
         return
