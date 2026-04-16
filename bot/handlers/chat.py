@@ -95,12 +95,9 @@ async def _detect_and_execute(message: Message, user_text: str):
 
     # Выполняем инструмент
     if tool == "NONE":
-        reply = params.get("reply", "")
-        if reply:
-            await message.answer(reply)
-        else:
-            response = await ask_alfred(message.chat.id, user_text)
-            await message.answer(response)
+        # Всегда через ask_alfred — он загружает базу знаний
+        response = await ask_alfred(message.chat.id, user_text)
+        await message.answer(response)
 
     elif tool == "CREATE_TASK":
         name = params.get("name", "")
