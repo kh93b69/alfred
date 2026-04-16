@@ -5,7 +5,7 @@ import zipfile
 from aiogram import Router
 from aiogram.types import Message
 
-from bot.services.knowledge import KNOWLEDGE_DIR
+from bot.services.knowledge import KNOWLEDGE_DIR, add_to_cache
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -149,8 +149,12 @@ async def handle_document(message: Message):
             await message.answer("Файл пустой или не удалось извлечь текст.")
             return
 
-        # Сохраняем как .txt в базу знаний
+        # Сохраняем в базу знаний (Notion + кеш)
         safe_name = filename.rsplit(".", 1)[0]
+        add_to_cache(safe_name, text)
+
+        # Также локально как фолбэк
+        os.makedirs(KNOWLEDGE_DIR, exist_ok=True)
         save_path = os.path.join(KNOWLEDGE_DIR, f"{safe_name}.txt")
         with open(save_path, "w", encoding="utf-8") as f:
             f.write(text)

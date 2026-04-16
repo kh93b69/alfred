@@ -22,11 +22,11 @@ async def cmd_knowledge(message: Message):
         return
 
     text = "📂 **База знаний Альфреда:**\n\n"
-    for f in files:
-        name = f.rsplit(".", 1)[0]
+    for name in files:
         text += f"• {name}\n"
 
-    text += f"\nВсего файлов: {len(files)}"
+    text += f"\nВсего документов: {len(files)}"
+    text += "\n\nДанные хранятся в Notion — не пропадут при обновлении."
     await message.answer(text, parse_mode="Markdown")
 
 
