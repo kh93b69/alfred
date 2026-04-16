@@ -116,21 +116,40 @@ def get_all_tasks() -> list[dict]:
     return all_tasks
 
 
+def _get_inbox_project_id() -> str:
+    """Получает ID проекта Inbox (первый проект по умолчанию)"""
+    projects = get_projects()
+    # Ищем inbox
+    for p in projects:
+        if p.get("kind") == "INBOX" or p.get("name", "").lower() == "inbox":
+            return p["id"]
+    # Если не нашли — берём первый
+    if projects:
+        return projects[0]["id"]
+    return ""
+
+
 def create_task(title: str, content: str = "", project_id: str = None, due_date: str = None) -> dict:
     """
     Создаёт задачу в TickTick.
     due_date: формат "2026-04-20T08:00:00+0000"
     """
+    # Если проект не указан — создаём в Inbox
+    if not project_id:
+        project_id = _get_inbox_project_id()
+
     body = {
         "title": title,
-        "content": content,
+        "projectId": project_id,
     }
-    if project_id:
-        body["projectId"] = project_id
+    if content:
+        body["content"] = content
     if due_date:
         body["dueDate"] = due_date
 
-    return _request("POST", "/task", body)
+    result = _request("POST", "/task", body)
+    logger.info(f"TickTick задача создана: {title} (project: {project_id}, id: {result.get('id', '?')})")
+    return result
 
 
 def complete_task(task_id: str, project_id: str) -> dict:
