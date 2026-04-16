@@ -6,7 +6,7 @@ from aiogram.types import Message
 from openai import OpenAI
 
 from bot.config import OPENAI_API_KEY
-from bot.services.ai import ask_alfred
+from bot.handlers.chat import _detect_and_execute
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -70,10 +70,9 @@ async def handle_voice(message: Message):
         # Показываем что распознали
         await message.answer(f"📝 Распознано:\n_{text}_", parse_mode="Markdown")
 
-        # Отправляем распознанный текст Альфреду
+        # Отправляем в умный роутинг (как текстовое сообщение)
         await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
-        response = await ask_alfred(chat_id=message.chat.id, user_message=text)
-        await message.answer(response)
+        await _detect_and_execute(message, text)
 
     except Exception as e:
         logger.error(f"Ошибка обработки голосового: {e}")
@@ -99,8 +98,7 @@ async def handle_video_note(message: Message):
         await message.answer(f"📝 Распознано:\n_{text}_", parse_mode="Markdown")
 
         await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
-        response = await ask_alfred(chat_id=message.chat.id, user_message=text)
-        await message.answer(response)
+        await _detect_and_execute(message, text)
 
     except Exception as e:
         logger.error(f"Ошибка обработки кружочка: {e}")
