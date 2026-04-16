@@ -55,8 +55,6 @@ async def handle_voice(message: Message):
         await message.answer("OpenAI API ключ не настроен. Голосовые пока не работают.")
         return
 
-    await message.answer("Слушаю...")
-
     try:
         # Транскрибируем голосовое
         text = await transcribe_voice(message.bot, message.voice.file_id)
@@ -67,10 +65,7 @@ async def handle_voice(message: Message):
 
         logger.info(f"Распознано голосовое от {message.from_user.full_name}: {text[:50]}...")
 
-        # Показываем что распознали
-        await message.answer(f"📝 Распознано:\n_{text}_", parse_mode="Markdown")
-
-        # Отправляем в умный роутинг (как текстовое сообщение)
+        # Сразу отправляем в умный роутинг без промежуточных сообщений
         await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
         await _detect_and_execute(message, text)
 
@@ -86,16 +81,12 @@ async def handle_video_note(message: Message):
         await message.answer("OpenAI API ключ не настроен.")
         return
 
-    await message.answer("Слушаю кружочек...")
-
     try:
         text = await transcribe_voice(message.bot, message.video_note.file_id)
 
         if not text.strip():
             await message.answer("Не удалось распознать речь.")
             return
-
-        await message.answer(f"📝 Распознано:\n_{text}_", parse_mode="Markdown")
 
         await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
         await _detect_and_execute(message, text)
