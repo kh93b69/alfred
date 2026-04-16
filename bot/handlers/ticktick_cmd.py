@@ -45,16 +45,19 @@ async def cmd_ticktick(message: Message):
         return
 
     # Не подключён — дать ссылку
-    auth_url = ticktick.get_auth_url()
-    await message.answer(
-        "**Подключение TickTick:**\n\n"
-        f"1. Перейди по ссылке:\n{auth_url}\n\n"
-        "2. Нажми 'Authorize'\n"
-        "3. Тебя перекинет на localhost — это нормально\n"
-        "4. Скопируй из адресной строки параметр `code=XXXXX`\n"
-        "5. Отправь мне: /ticktick XXXXX",
-        parse_mode="Markdown",
-    )
+    try:
+        auth_url = ticktick.get_auth_url()
+        await message.answer(
+            f"**Подключение TickTick:**\n\n"
+            f"1. Перейди по ссылке:\n{auth_url}\n\n"
+            f"2. Нажми 'Authorize'\n"
+            f"3. Тебя перекинет на localhost — это нормально\n"
+            f"4. Скопируй из адресной строки параметр code=XXXXX\n"
+            f"5. Отправь мне: /ticktick XXXXX",
+        )
+    except Exception as e:
+        logger.error(f"Ошибка TickTick auth: {e}")
+        await message.answer(f"Ошибка: {e}")
 
 
 @router.message(Command("tt"))
