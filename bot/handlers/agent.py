@@ -7,7 +7,7 @@ from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, FSInputFile
 
 from bot.services.agent import propose_daily_tasks, execute_task, daily_report, pending_tasks
-from bot.services import trello
+from bot.services import trello, task_memory
 from bot.services.scheduler import set_owner
 
 router = Router()
@@ -147,11 +147,14 @@ async def on_reject(callback: CallbackQuery):
     # Мгновенно отвечаем
     await callback.answer("Отклонено")
 
+    # Запоминаем что отклонил — больше не предлагать
+    task_memory.add_rejected(task["name"])
+
     del pending_tasks[task_key]
 
     try:
         await callback.message.edit_text(
-            f"❌ ~~{task['name']}~~ — отклонена",
+            f"❌ ~~{task['name']}~~ — отклонена (больше не предложу)",
             parse_mode="Markdown",
         )
     except Exception:

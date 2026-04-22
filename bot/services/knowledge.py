@@ -66,38 +66,63 @@ def _load_from_notion():
 
 
 def _fetch_page_content(page_id: str) -> str:
-    """Загружает текстовый контент страницы Notion"""
-    url = f"https://api.notion.com/v1/blocks/{page_id}/children?page_size=100"
-    req = urllib.request.Request(url)
-    req.add_header("Authorization", f"Bearer {NOTION_API_KEY}")
-    req.add_header("Notion-Version", "2022-06-28")
-
-    try:
-        with urllib.request.urlopen(req) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-    except Exception:
-        return ""
-
+    """Загружает текстовый контент страницы Notion (все блоки с пагинацией)"""
     lines = []
-    for block in data.get("results", []):
-        block_type = block.get("type", "")
-        block_data = block.get(block_type, {})
-        rich_text = block_data.get("rich_text", [])
+    start_cursor = None
 
-        text = "".join(t.get("plain_text", "") for t in rich_text)
+    while True:
+        url = f"https://api.notion.com/v1/blocks/{page_id}/children?page_size=100"
+        if start_cursor:
+            url += f"&start_cursor={start_cursor}"
 
-        if block_type == "heading_1":
-            lines.append(f"# {text}")
-        elif block_type == "heading_2":
-            lines.append(f"## {text}")
-        elif block_type == "heading_3":
-            lines.append(f"### {text}")
-        elif block_type == "bulleted_list_item":
-            lines.append(f"- {text}")
-        elif block_type == "numbered_list_item":
-            lines.append(f"1. {text}")
-        elif text:
-            lines.append(text)
+        req = urllib.request.Request(url)
+        req.add_header("Authorization", f"Bearer {NOTION_API_KEY}")
+        req.add_header("Notion-Version", "2022-06-28")
+
+        try:
+            with urllib.request.urlopen(req) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+        except Exception as e:
+            logger.error(f"Ошибка загрузки блоков: {e}")
+            break
+
+        for block in data.get("results", []):
+            block_type = block.get("type", "")
+            block_data = block.get(block_type, {})
+            rich_text = block_data.get("rich_text", [])
+            text = "".join(t.get("plain_text", "") for t in rich_text)
+
+            if block_type == "heading_1" and text:
+                lines.append(f"# {text}")
+            elif block_type == "heading_2" and text:
+                lines.append(f"## {text}")
+            elif block_type == "heading_3" and text:
+                lines.append(f"### {text}")
+            elif block_type == "bulleted_list_item" and text:
+                lines.append(f"- {text}")
+            elif block_type == "numbered_list_item" and text:
+                lines.append(f"1. {text}")
+            elif block_type == "paragraph" and text:
+                lines.append(text)
+            elif block_type == "code" and text:
+                lines.append(text)
+            elif block_type == "quote" and text:
+                lines.append(f"> {text}")
+            elif block_type == "toggle" and text:
+                lines.append(text)
+            elif block_type == "to_do" and text:
+                checked = block_data.get("checked", False)
+                mark = "[x]" if checked else "[ ]"
+                lines.append(f"{mark} {text}")
+            elif text:
+                lines.append(text)
+
+        # Пагинация
+        if not data.get("has_more"):
+            break
+        start_cursor = data.get("next_cursor")
+        if not start_cursor:
+            break
 
     return "\n".join(lines)
 

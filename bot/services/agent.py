@@ -11,6 +11,7 @@ from openpyxl import Workbook
 from bot.services.ai import client
 from bot.services.knowledge import load_knowledge
 from bot.services import trello
+from bot.services import task_memory
 from bot.config import CLAUDE_MODEL, TRELLO_LIST_INBOX, TRELLO_LIST_DOING, TRELLO_LIST_DONE
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,7 @@ async def propose_daily_tasks() -> list[dict]:
         current_tasks += f"- [{list_name}] {card['name']}\n"
 
     today = datetime.now().strftime("%d.%m.%Y, %A")
+    history = task_memory.get_history_summary()
 
     prompt = f"""Ты — Альфред, автономный AI-ассистент. Сегодня {today}.
 
@@ -53,19 +55,26 @@ async def propose_daily_tasks() -> list[dict]:
 ТЕКУЩИЕ ЗАДАЧИ НА ДОСКЕ:
 {current_tasks if current_tasks else "Доска пуста"}
 
-Сгенерируй 3-5 конкретных задач на сегодня. Каждая задача должна:
-- Быть конкретной и выполнимой
-- Помогать владельцу продвигаться к целям
-- Не дублировать существующие задачи
-- Иметь конкретный результат (документ, таблица, анализ, план)
+ИСТОРИЯ ЗАДАЧ (НЕ повторяй!):
+{history if history else "История пуста"}
 
-Для каждой задачи укажи:
+КРИТИЧЕСКИ ВАЖНО:
+- НЕ предлагай задачи из истории "ОТКЛОНЁННЫЕ" — владелец их не хочет
+- НЕ предлагай задачи из истории "ВЫПОЛНЕННЫЕ" — они уже сделаны
+- НЕ повторяй задачи которые уже есть на доске
+- Каждый день — СВЕЖИЕ, РАЗНЫЕ задачи
+- Думай о том что НОВОЕ можно сделать сегодня для прогресса к целям
+- Задачи должны быть разнообразными по типу: анализ, контент, стратегия, нетворкинг, рост
+
+Сгенерируй 3-5 конкретных НОВЫХ задач на сегодня.
+
+Для каждой задачи:
 - name: краткое название (до 60 символов)
-- description: что конкретно нужно сделать (2-3 предложения)
-- output_type: тип результата — "document" (docx), "table" (xlsx), "text" (текст в комментарии)
+- description: что конкретно делать (2-3 предложения)
+- output_type: "document" (docx), "table" (xlsx) или "text"
 
-Верни ТОЛЬКО JSON массив без markdown. Пример:
-[{{"name": "Анализ конкурентов", "description": "Проанализировать...", "output_type": "table"}}]"""
+Верни ТОЛЬКО JSON массив:
+[{{"name": "...", "description": "...", "output_type": "text"}}]"""
 
     response = client.messages.create(
         model=CLAUDE_MODEL,
@@ -79,6 +88,11 @@ async def propose_daily_tasks() -> list[dict]:
         json_text = json_text.rsplit("```", 1)[0]
 
     tasks = json.loads(json_text)
+
+    # Записываем что задачи были предложены
+    for task in tasks:
+        task_memory.add_proposed(task["name"])
+
     logger.info(f"Предложено {len(tasks)} задач на день")
     return tasks
 
@@ -240,6 +254,9 @@ async def execute_task(card_id: str, card_name: str, card_desc: str, output_type
 
     # Перемещаем в "На проверку"
     trello.move_to_review(card_id)
+
+    # Запоминаем выполненную задачу
+    task_memory.add_completed(card_name)
 
     logger.info(f"Задача выполнена: {card_name} (тип: {output_type})")
     return result
