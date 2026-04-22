@@ -9,6 +9,7 @@ OWNER_TZ = timezone(timedelta(hours=5))
 
 from bot.services.agent import propose_daily_tasks, daily_report, pending_tasks
 from bot.services.briefing import build_morning_briefing
+from bot.services import habits
 
 logger = logging.getLogger(__name__)
 
@@ -124,9 +125,67 @@ async def evening_report():
         logger.error(f"Ошибка вечернего отчёта: {e}")
 
 
+async def weekly_review_job():
+    """Еженедельный обзор — каждое воскресенье в 20:00"""
+    if not owner_chat_id or not bot_instance:
+        return
+    try:
+        logger.info("Еженедельный обзор...")
+        # Вызываем через команду /weekly
+        from bot.handlers.weekly import cmd_weekly
+        # Создаём фиктивное сообщение
+        class FakeMessage:
+            def __init__(self, chat_id, bot):
+                self.chat = type("c", (), {"id": chat_id})()
+                self.bot = bot
+            async def answer(self, text, parse_mode=None, reply_markup=None):
+                await bot_instance.send_message(owner_chat_id, text, parse_mode=parse_mode)
+            async def answer_document(self, doc, caption=None):
+                await bot_instance.send_document(owner_chat_id, doc, caption=caption)
+            @property
+            def text(self):
+                return "/weekly"
+        fake = FakeMessage(owner_chat_id, bot_instance)
+        await cmd_weekly(fake)
+    except Exception as e:
+        logger.error(f"Ошибка weekly: {e}")
+
+
+async def habits_check_job():
+    """Утренний чек привычек — в 9:00"""
+    if not owner_chat_id or not bot_instance:
+        return
+    try:
+        all_habits = habits.get_habits()
+        if not all_habits:
+            return
+
+        text = "🌱 **Утренний чек привычек:**\n\n"
+        for h in all_habits:
+            streak = habits.get_streak(h["id"])
+            text += f"**{h['name']}** 🔥 {streak} дней\n"
+        text += "\nОтметь выполненные:"
+
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        buttons = []
+        for h in all_habits:
+            row = [
+                InlineKeyboardButton(text=f"✅ {h['name'][:25]}", callback_data=f"habit_yes:{h['id']}"),
+                InlineKeyboardButton(text="❌", callback_data=f"habit_no:{h['id']}"),
+            ]
+            buttons.append(row)
+        keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
+
+        await bot_instance.send_message(owner_chat_id, text, parse_mode="Markdown", reply_markup=keyboard)
+    except Exception as e:
+        logger.error(f"Ошибка habits: {e}")
+
+
 def start_scheduler():
     """Запускает планировщик"""
     scheduler.add_job(morning_routine, CronTrigger(hour=8, minute=0, timezone=OWNER_TZ), id="morning_routine", replace_existing=True)
+    scheduler.add_job(habits_check_job, CronTrigger(hour=9, minute=0, timezone=OWNER_TZ), id="habits_check", replace_existing=True)
     scheduler.add_job(evening_report, CronTrigger(hour=21, minute=0, timezone=OWNER_TZ), id="evening_report", replace_existing=True)
+    scheduler.add_job(weekly_review_job, CronTrigger(day_of_week="sun", hour=20, minute=0, timezone=OWNER_TZ), id="weekly_review", replace_existing=True)
     scheduler.start()
-    logger.info("Планировщик запущен: утро 8:00, вечер 21:00 (UTC+5)")
+    logger.info("Планировщик: 8:00 брифинг+план, 9:00 привычки, 21:00 отчёт+энергия, вс 20:00 обзор недели")

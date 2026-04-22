@@ -121,6 +121,67 @@ async def cmd_tt(message: Message):
             await message.answer(f"Ошибка: {e}")
         return
 
+    if raw in ("анализ", "analyze", "проанализируй"):
+        # Анализ задач TickTick
+        await message.answer("Анализирую задачи из TickTick...")
+        try:
+            from bot.services.ai import client
+            from bot.services.knowledge import load_knowledge
+            from bot.config import CLAUDE_MODEL
+
+            all_tasks = ticktick.get_all_tasks()
+            active = [t for t in all_tasks if t.get("status", 0) != 2]
+
+            if not active:
+                await message.answer("Активных задач в TickTick нет.")
+                return
+
+            tasks_text = "\n".join([
+                f"- [{t.get('_project_name', '')}] {t['title']}"
+                for t in active[:50]
+            ])
+            knowledge = load_knowledge()[:3000]
+
+            prompt = f"""Ты — Альфред. Проанализируй задачи владельца из TickTick.
+
+БАЗА ЗНАНИЙ (цели и проекты владельца):
+{knowledge if knowledge else "Нет данных"}
+
+АКТИВНЫЕ ЗАДАЧИ В TICKTICK:
+{tasks_text}
+
+Проанализируй и дай рекомендации:
+
+## 🎯 На сегодня / срочные
+(какие задачи делать в первую очередь и почему)
+
+## 📋 Важные, но не срочные
+(задачи которые продвигают к целям)
+
+## 🤖 Могу взять на себя
+(конкретные задачи которые Я (Альфред) могу выполнить — анализ, документы, идеи, контент)
+Для каждой укажи: название задачи и что конкретно я сделаю.
+
+## 🗑 Можно убрать
+(задачи которые уже неактуальны или дублируются)
+
+## 💡 Что добавить
+(задач которые ты видишь нужны исходя из целей, но их нет в списке)
+
+Будь конкретным и кратким."""
+
+            response = client.messages.create(
+                model=CLAUDE_MODEL,
+                max_tokens=3000,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            result = response.content[0].text
+            await message.answer(result[:4000], parse_mode=None)
+        except Exception as e:
+            logger.error(f"Ошибка анализа: {e}")
+            await message.answer(f"Ошибка: {e}")
+        return
+
     # Если просто текст — создаём задачу
     try:
         task = ticktick.create_task(title=raw)
